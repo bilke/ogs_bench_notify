@@ -2,11 +2,39 @@ require 'rubygems'
 require 'sequel'
 require 'time'
 
+require 'database.rb'
+
+Sequel::Model.plugin(:schema)
+
+#DB = Sequel.connect('sqlite://bench.db')
+
+
+$DB.create_table! :benchmark_run_infos do
+  primary_key :id
+  Float       :time
+  Boolean     :crashed
+  String      :name
+  Boolean     :passed
+
+  foreign_key :author_id
+  index       :author_id
+end
+
+class BenchmarkRunInfoDB < Sequel::Model( :benchmark_run_infos )
+  many_to_one :author
+end
+
+
+run = BenchmarkRunInfoDB.create(:time => 1.0, :crashed => true, :name => 'Name',
+                                :author => 'Author', :passed => 'true')
+
+BenchmarkRunInfoDB.each {|row| p row}
+puts BenchmarkRunInfoDB.count
+
 class BenchmarkRunInfo
 
   attr_reader :time
   attr_reader :crashed
-  attr_reader :type
   attr_reader :name
   attr_reader :author
   attr_reader :passed
@@ -214,4 +242,4 @@ class BenchmarkJobOutputReader
 end
 
 info = BenchmarkJobOutputReader.new('benchOut.txt')
-puts info.inspect2
+#puts info.inspect2

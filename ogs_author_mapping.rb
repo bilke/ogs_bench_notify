@@ -16,7 +16,7 @@ end
 
 class Author < Sequel::Model(:authors)
   one_to_one :commit_info
-  #one_to_one :benchmark_run_info
+  one_to_one :benchmark_run
 end
 
 class AuthorLoader

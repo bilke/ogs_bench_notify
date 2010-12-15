@@ -1,57 +1,27 @@
 require 'rubygems'
 require 'sequel'
 require 'time'
-
 require 'database.rb'
+require 'ogs_author_mapping.rb'
+require 'commit_info.rb'
 
-Sequel::Model.plugin(:schema)
-
-#DB = Sequel.connect('sqlite://bench.db')
-
-
-$DB.create_table! :benchmark_run_infos do
+$DB.create_table! :benchmark_runs do
   primary_key :id
+  String      :name
   Float       :time
   Boolean     :crashed
-  String      :name
   Boolean     :passed
+  String      :config
 
   foreign_key :author_id
   index       :author_id
+  foreign_key :commit_info_id
+  index       :commit_info_id
 end
 
-class BenchmarkRunInfoDB < Sequel::Model( :benchmark_run_infos )
+class BenchmarkRun < Sequel::Model( :benchmark_runs )
   many_to_one :author
-end
-
-
-run = BenchmarkRunInfoDB.create(:time => 1.0, :crashed => true, :name => 'Name',
-                                :author => 'Author', :passed => 'true')
-
-BenchmarkRunInfoDB.each {|row| p row}
-puts BenchmarkRunInfoDB.count
-
-class BenchmarkRunInfo
-
-  attr_reader :time
-  attr_reader :crashed
-  attr_reader :name
-  attr_reader :author
-  attr_reader :passed
-
-  def passed=(passed)
-    if not crashed
-      @passed = passed
-    end
-  end
-
-  def initialize(time, crashed, name, author)
-    @passed = false
-    @time = time
-    @crashed = crashed
-    @name = name
-    @author = author
-  end
+  many_to_one :commit_info
 
   def inspect2
     if @crashed
@@ -63,131 +33,38 @@ class BenchmarkRunInfo
     end
     @passed ? passed = 'passed' : passed = 'failed'
     if not @passed
-      puts "Benchmark #{@name} by #{@author} #{passed} in #{time} s."
+      puts "Benchmark #{self.name} by #{self.author.name} #{passed} in #{time} s."
     end
   end
 end
 
-class BenchmarkConfigRunInfo
 
-  attr_reader :config
+#run = BenchmarkRun.create(:time => 1.0, :crashed => false, :name => 'BenchName',
+#                          :config => 'fem')
+#run.author = Author[:svn_user => 'bilke']
+#run.commit_info = CommitInfo[:revision => 7144]
+#run.passed = true
+#run.save
+#
+#BenchmarkRun.each {|row| row.inspect2}
+#puts BenchmarkRun.count
 
-  def num_tested
-    return @runs.length
-  end
-
-  def num_passed
-    return @runs.length - failed.length
-  end
-
-  def num_failed
-    return failed.length
-  end
-
-  def num_crashed
-    return crashed.length
-  end
-
-  # Returns a list of failed benchmarks
-  def failed
-    failed = []
-    @runs.each do |run|
-      failed.push run if not run.passed
-    end
-    return failed
-  end
-
-  # Returns a list of crashed benchmarks
-  def crashed
-    crashed = []
-    @runs.each do |run|
-      crashed.push run if run.crashed
-    end
-    return crashed
-  end
-
-  # Get benchmark by name
-  def benchmark(name)
-    @runs.each do |run|
-      return run if run.name =~ /#{Regexp.escape(name)}$/
-    end
-    puts "Benchmark #{name} not found."
-    return nil
-  end
-
-  def inspect2
-    puts '=== BenchmarkConfigRunInfo ==='
-    puts "Tested  :  #{num_tested}"
-    puts "Passed  :  #{num_passed}"
-    puts "Crashed :  #{num_crashed}"
-    puts "Failed  :  #{num_failed}"
-    puts '---------------------'
-    @runs.each { |run| run.inspect2}
-    puts ''
-  end
-
-  def initialize(config)
-    @config = config
-    @runs = []
-  end
-
-  def add_benchmark_run(time, crashed, name, author)
-    @runs.push BenchmarkRunInfo.new(time, crashed, name, author)
-  end
-
-end
-
-class BenchmarkJobOutputReader
+class BenchmarkRunsLoader
 
   attr_reader :bench_test_infos
-
-  def num_tested
-    num = 0
-    @bench_test_infos.each do |info|
-      num = num + info.num_tested
-    end
-    return num
-  end
-
-  def num_passed
-    num = 0
-    @bench_test_infos.each do |info|
-      num = num + info.num_passed
-    end
-    return num
-  end
-
-  def num_crashed
-    num = 0
-    @bench_test_infos.each do |info|
-      num = num + info.num_failed
-    end
-    return num
-  end
-
-  def num_failed
-    num = 0
-    @bench_test_infos.each do |info|
-      num = num + info.num_failed
-    end
-    return num
-  end
 
   def initialize(filename)
     @bench_test_infos = []
 
     File.open(filename, 'r') do |file|
       num_test_project_lines = 0
+      config = nil
       while line = file.gets
         if line =~ /Test project/
           # Check config
           config = line.scan(/build_([\w]+$)/)[0].to_s
 
           # Even test runs are benchmarks, otherwise file compares
-          if num_test_project_lines % 2 == 0
-            bench_test_infos.push BenchmarkConfigRunInfo.new(config)
-          end
-
           num_test_project_lines += 1
 
         elsif line =~ /^\s*[0-9]+\/[0-9]+\sTest/
@@ -208,38 +85,32 @@ class BenchmarkJobOutputReader
 
             # Check benchmark time
             time = line.scan(/\s+([0-9]+\.[0-9]+)\s+sec/)[0].to_s.to_f
-         
-            bench_test_infos.last.add_benchmark_run(
-                time, crashed, name, author)
+
+            benchmark_run = BenchmarkRun.create(:commit_info => CommitInfo.last,
+                                                :time => time,
+                                                :crashed => crashed,
+                                                :name => name,
+                                                :config => config,
+                                                :author => Author[:short_name => author])
 
             #puts "Add Benchmark: #{name}, crashed #{crashed}"
           else
-            bench = bench_test_infos.last.benchmark(name)
+            bench = BenchmarkRun[:name => name]
             if bench
               bench.passed = !crashed
+              bench.save
             else
               puts line
             end
           end
-
         end
       end
     end
-
-  end
-
-  def inspect2
-    puts '=== BenchmarkJobOutputReader ==='
-    puts "Tested  :  #{num_tested}"
-    puts "Passed  :  #{num_passed}"
-    puts "Crashed :  #{num_crashed}"
-    puts "Failed  :  #{num_failed}"
-    puts '---------------------'
-    @bench_test_infos.each { |info| info.inspect2}
-    puts ''
   end
 
 end
 
-info = BenchmarkJobOutputReader.new('benchOut.txt')
-#puts info.inspect2
+CommitInfoLoader.new.load_file("svnInfo.txt")
+info = BenchmarkRunsLoader.new('benchOut.txt')
+
+BenchmarkRun.each {|row| p row}

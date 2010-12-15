@@ -10,12 +10,16 @@ Sequel::Model.unrestrict_primary_key
 $DB.create_table! :commit_infos do
   primary_key     :revision
   Time            :date
+  String          :branch
   foreign_key     :author_id, :table => :authors
+
 end
 
 class CommitInfo < Sequel::Model(:commit_infos)
   set_primary_key :revision
+  set_dataset dataset.order(:revision)
   many_to_one :author
+  many_to_one :benchmark_run
 end
 
 class CommitInfoLoader
@@ -25,8 +29,12 @@ class CommitInfoLoader
       revision = 0
       author = nil
       date = nil
+      branch = nil
 
       while line = file.gets
+        line.scan(/svn\/ogs\/([\S]+)\//) do |match|
+          branch = match[0]
+        end
         line.scan(/Revision:\s([0-9]+)/) do |match|
           revision = match[0].to_f
         end
@@ -38,7 +46,9 @@ class CommitInfoLoader
           date = Time.parse(match[0])
         end
       end
-      commit_info = CommitInfo.create(:revision => revision, :date => date)
+      commit_info = CommitInfo.create(:revision => revision,
+                                      :date => date,
+                                      :branch => branch)
       commit_info.author = author
       commit_info.save
     end
@@ -46,5 +56,5 @@ class CommitInfoLoader
 
 end
 
-CommitInfoLoader.new.load_file('svnInfo.txt')
-$DB[:commit_infos].each {|row| p row}
+#CommitInfoLoader.new.load_file('svnInfo.txt')
+#$DB[:commit_infos].each {|row| p row}

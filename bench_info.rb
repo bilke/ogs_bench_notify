@@ -33,6 +33,8 @@ class BenchmarkRun < Sequel::Model( :benchmark_runs )
     end
     @passed ? passed = 'passed' : passed = 'failed'
     if not @passed
+      p self if not self.name
+      p self if not self.author
       puts "Benchmark #{self.name} by #{self.author.name} #{passed} in #{time} s."
     end
   end
@@ -55,7 +57,7 @@ class BenchmarkRunsLoader
 
   def initialize(filename)
     @bench_test_infos = []
-
+    puts "Loading benchmark job from #{filename}"
     File.open(filename, 'r') do |file|
       num_test_project_lines = 0
       config = nil
@@ -110,7 +112,7 @@ class BenchmarkRunsLoader
 
 end
 
-CommitInfoLoader.new.load_file("svnInfo.txt")
-info = BenchmarkRunsLoader.new('benchOut.txt')
+#CommitInfoLoader.new.load_file("svnInfo.txt")
+#info = BenchmarkRunsLoader.new('benchOut.txt')
 
-BenchmarkRun.each {|row| p row}
+#BenchmarkRun.each {|row| p row}

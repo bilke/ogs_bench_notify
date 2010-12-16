@@ -7,7 +7,7 @@ require 'ogs_author_mapping.rb'
 Sequel::Model.unrestrict_primary_key
 
 # Create a table if it not exists
-$DB.create_table! :commit_infos do
+$DB.create_table? :commit_infos do
   primary_key     :revision
   Time            :date
   String          :branch
@@ -24,7 +24,7 @@ end
 
 class CommitInfoLoader
 
-  def load_file(filename)
+  def initialize(filename)
     File.open(filename, 'r') do |file|
       revision = 0
       author = nil
@@ -36,7 +36,7 @@ class CommitInfoLoader
           branch = match[0]
         end
         line.scan(/Revision:\s([0-9]+)/) do |match|
-          revision = match[0].to_f
+          revision = match[0].to_i
         end
         line.scan(/Last Changed Author:\s([\w]+)/) do |match|
           author_name = match[0]
@@ -46,15 +46,21 @@ class CommitInfoLoader
           date = Time.parse(match[0])
         end
       end
-      commit_info = CommitInfo.create(:revision => revision,
-                                      :date => date,
-                                      :branch => branch)
-      commit_info.author = author
-      commit_info.save
+
+      if CommitInfo[:revision => revision]
+        puts "Commit info of revision #{revision} already read."
+      else
+        commit_info = CommitInfo.create(:revision => revision,
+                                        :date => date,
+                                        :branch => branch)
+        commit_info.author = author
+        commit_info.save
+      end
+
     end
   end
 
 end
 
-#CommitInfoLoader.new.load_file('svnInfo.txt')
+#CommitInfoLoader.new('tests/svnInfoOld.txt')
 #$DB[:commit_infos].each {|row| p row}

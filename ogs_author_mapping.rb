@@ -4,7 +4,7 @@ require 'database.rb'
 
 
 # Create a table if it not exists
-$DB.create_table! :authors do
+$DB.create_table? :authors do
   primary_key :id
   String :name
   String :svn_user
@@ -40,16 +40,20 @@ class AuthorLoader
           short_name = short_name + name_char.gsub(/\s/, '').upcase
         }
 
-        # Insert into database
-        Author.create(:name => name,   :svn_user => svn_user,
-                      :email => email, :short_name => short_name)
+        if Author[:svn_user => svn_user]
+          puts "Author #{Author[:svn_user => svn_user].name} already registered."
+        else
+          # Insert into database
+          Author.create(:name => name,   :svn_user => svn_user,
+                        :email => email, :short_name => short_name)
+        end
       end
     end
   end
 end
 
 
-AuthorLoader.new.load_file('authors.txt')
+#AuthorLoader.new.load_file('authors.txt')
 #$DB[:authors].each {|row| p row}
 #print $DB[:authors].count
 

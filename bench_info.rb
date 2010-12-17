@@ -5,7 +5,7 @@ require 'database.rb'
 require 'ogs_author_mapping.rb'
 require 'commit_info.rb'
 
-$DB.create_table! :benchmark_runs do
+$DB.create_table? :benchmark_runs do
   primary_key :id
   String      :name
   Float       :time
@@ -23,6 +23,10 @@ class BenchmarkRun < Sequel::Model( :benchmark_runs )
   many_to_one :author
   many_to_one :commit_info
 
+  def benchmark_info
+    return "#{self.name} by #{self.author.name}"
+  end
+
   def inspect2
     if @crashed
       passed = 'crashed'
@@ -35,7 +39,7 @@ class BenchmarkRun < Sequel::Model( :benchmark_runs )
     if not @passed
       p self if not self.name
       p self if not self.author
-      puts "Benchmark #{self.name} by #{self.author.name} #{passed} in #{time} s."
+      puts "Benchmark #{benchmark_info} #{passed} in #{time} s."
     end
   end
 end
@@ -85,6 +89,12 @@ class BenchmarkRunsLoader
           # Even test runs are benchmarks, otherwise file compares
           if (num_test_project_lines-1) % 2 == 0
 
+            duplicate_entry = BenchmarkRun.filter(:commit_info_id => CommitInfo.last.revision, :name => name)
+            if duplicate_entry.all.length > 0
+              puts "Duplicate benchmark run entry"
+              next
+            end
+
             # Check benchmark time
             time = line.scan(/\s+([0-9]+\.[0-9]+)\s+sec/)[0].to_s.to_f
 
@@ -95,9 +105,9 @@ class BenchmarkRunsLoader
                                                 :config => config,
                                                 :author => Author[:short_name => author])
 
-            #puts "Add Benchmark: #{name}, crashed #{crashed}"
+            #puts "Add Benchmark: #{name}, crashed #{crashed} "
           else
-            bench = BenchmarkRun[:name => name]
+            bench = BenchmarkRun[:name => name, :commit_info_id => CommitInfo.last.revision]
             if bench
               bench.passed = !crashed
               bench.save
@@ -111,8 +121,3 @@ class BenchmarkRunsLoader
   end
 
 end
-
-#CommitInfoLoader.new.load_file("svnInfo.txt")
-#info = BenchmarkRunsLoader.new('benchOut.txt')
-
-#BenchmarkRun.each {|row| p row}

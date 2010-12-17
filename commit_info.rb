@@ -12,7 +12,6 @@ $DB.create_table? :commit_infos do
   Time            :date
   String          :branch
   foreign_key     :author_id, :table => :authors
-
 end
 
 class CommitInfo < Sequel::Model(:commit_infos)

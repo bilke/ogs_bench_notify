@@ -4,7 +4,7 @@ require 'database.rb'
 
 
 # Create a table if it not exists
-$DB.create_table? :authors do
+$DB.create_table! :authors do
   primary_key :id
   String :name
   String :svn_user
@@ -21,7 +21,7 @@ end
 
 class AuthorLoader
   
-  def load_file(file_name)
+  def initialize(file_name)
     File.open(file_name, 'r') do |file|
 
       while line = file.gets
@@ -53,7 +53,7 @@ class AuthorLoader
 end
 
 
-#AuthorLoader.new.load_file('authors.txt')
+AuthorLoader.new('authors.txt')
 #$DB[:authors].each {|row| p row}
 #print $DB[:authors].count
 

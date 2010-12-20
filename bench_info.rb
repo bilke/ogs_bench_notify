@@ -1,7 +1,7 @@
 require 'rubygems'
 require 'sequel'
 require 'time'
-require 'database.rb'
+#require 'database.rb'
 require 'ogs_author_mapping.rb'
 require 'commit_info.rb'
 

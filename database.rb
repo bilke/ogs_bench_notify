@@ -1,3 +1,3 @@
 require 'sequel'
 
-$DB = Sequel.connect('sqlite://ogsbenchnotify.db')
+$DB = Sequel.connect('sqlite://ogsbench.db')

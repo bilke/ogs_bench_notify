@@ -1,7 +1,7 @@
 require 'rubygems'
 require 'time'
 require 'sequel'
-require 'database.rb'
+#require 'database.rb'
 require 'ogs_author_mapping.rb'
 
 Sequel::Model.unrestrict_primary_key

@@ -1,6 +1,6 @@
 require 'rubygems'
 require 'sequel'
-require 'database.rb'
+#require 'database.rb'
 
 
 # Create a table if it not exists
